@@ -17,11 +17,16 @@ MQTT_SERVER = "test.mosquitto.org"
 IMAGE_TOPIC = "craftsx/img"
 MODE_TOPIC = "craftsx/mode"
 ID_TOPIC = "craftsx/id"
+TF_TOPIC = "craftsx/tf"
+
 
 # Global variable to store the mode
 mode = 1  # Default mode
 mode_lock = threading.Lock()
 
+# Global variable to store tf data
+tf_data = None
+tf_lock = threading.Lock()
 
 from ultralytics import YOLO 
 
@@ -62,6 +67,24 @@ def update_mode():
     mode_client.on_message = on_mode_message
     mode_client.connect(MQTT_SERVER, 1883, 60)
     mode_client.loop_forever()
+
+
+def update_tf():
+    """ Continuously listens for tf updates in a separate thread. """
+    def on_tf_message(client, userdata, msg):
+        global tf_data
+        try:
+            new_tf = msg.payload.decode()
+            with tf_lock:
+                tf_data = new_tf
+        except Exception as e:
+            print("Error processing TF message:", e)
+    
+    tf_client = mqtt.Client()
+    tf_client.on_connect = lambda c, u, f, r: c.subscribe(TF_TOPIC)
+    tf_client.on_message = on_tf_message
+    tf_client.connect(MQTT_SERVER, 1883, 60)
+    tf_client.loop_forever()
 
 # Callback when connected to MQTT broker
 def on_connect(client, userdata, flags, rc):
@@ -108,6 +131,7 @@ def on_image_message(client, userdata, msg):
     cv.imshow("Nicla Vision", img_np)
     cv.waitKey(1)
 
+
 client = mqtt.Client()
 client.on_connect = on_connect
 client.message_callback_add(IMAGE_TOPIC, on_image_message)
@@ -116,5 +140,9 @@ client.connect(MQTT_SERVER, 1883, 60)
 # Start mode listener in a separate thread
 mode_thread = threading.Thread(target=update_mode, daemon=True)
 mode_thread.start()
+
+# Start TF listener in a separate thread
+tf_thread = threading.Thread(target=update_tf, daemon=True)
+tf_thread.start()
 
 client.loop_forever()

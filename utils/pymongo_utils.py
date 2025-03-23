@@ -3,7 +3,6 @@ import datetime
 
 def insert_data(collection, data):
     # Insert data into the collection
-    data["timestamp"] = datetime.datetime.now()
     collection.insert_one(data)
     print("Data inserted")
 

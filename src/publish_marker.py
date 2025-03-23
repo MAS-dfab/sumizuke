@@ -13,6 +13,20 @@ if module_path not in sys.path:
 
 import CCTDecodeRelease as cct
 
+marker_list = {"113": "011", "105": "012", "089": "013", "101": "014", "085": "015", "077": "016", "125": "017", "099": "018",
+               "083": "019", "075": "01a", "123": "01b", "071": "01c", "119": "01d", "111": "01e", "095": "01f", "135": "021",
+               "209": "022", "177": "023", "201": "024", "169": "025", "153": "026", "249": "027", "197": "028", "165": "029",
+               "149": "02a", "245": "02b", "141": "02c", "237": "02d", "221": "02e", "189": "02f", "163": "031", "147": "032",
+               "243": "033", "139": "034", "235": "035", "219": "036", "187": "037", "231": "039", "215": "03a", "183": "03b",
+               "207": "03c", "175": "03d", "159": "03e", "255": "03f", "281": "044", "277": "045", "275": "046", "287": "047",
+               "291": "048", "329": "049", "297": "04a", "489": "04b", "473": "04d", "441": "04e", "377": "04f", "293": "052",
+               "485": "053", "469": "055", "437": "056", "373": "057", "461": "059", "429": "05a", "365": "05b", "413": "05c",
+               "349": "05d", "317": "05e", "509": "05f", "399": "063", "467": "065", "435": "066", "371": "067", "459": "069",
+               "427": "06a", "363": "06b", "411": "06c", "347": "06d", "315": "06e", "507": "06f", "423": "072", "359": "073",
+               "407": "074", "343": "075", "311": "076", "503": "077", "335": "079", "303": "07a", "495": "07b", "479": "07d"}
+
+
+
 MQTT_SERVER = "test.mosquitto.org"
 IMAGE_TOPIC = "craftsx/img"
 MODE_TOPIC = "craftsx/mode"
@@ -58,7 +72,6 @@ def update_mode():
             new_mode = int(msg.payload.decode())
             with mode_lock:
                 mode = new_mode
-            print(f"Mode updated to: {mode}")
         except ValueError:
             print("Invalid mode received")
     
@@ -93,10 +106,12 @@ def on_connect(client, userdata, flags, rc):
 
 # Callback when image message is received
 def on_image_message(client, userdata, msg):
-    print("Image Received")
+
     nparr = np.frombuffer(msg.payload, np.uint8)
-    img_np = cv.imdecode(nparr, cv.IMREAD_COLOR)
-    
+    img_np_gray = cv.imdecode(nparr, cv.IMREAD_GRAYSCALE) # cv2.IMREAD_COLOR in OpenCV 3.1
+    img_np = cv.cvtColor(img_np_gray, cv.COLOR_GRAY2BGR)
+
+
     with mode_lock:
         current_mode = mode
     
@@ -104,7 +119,10 @@ def on_image_message(client, userdata, msg):
         code_table, img = cct.CCT_extract(img_np, 12, 0.85, 'black')
         print("Code Table: ", code_table)
         if code_table:
-            client.publish(ID_TOPIC, str(code_table[0][0]))
+            if str(code_table[0][0]) in marker_list:
+                print('yey')
+                image_id = marker_list[str(code_table[0][0])]
+                client.publish(ID_TOPIC, image_id)
     else:
         print("Processing image in mode", current_mode)
         # Add alternative image processing logic here

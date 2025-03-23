@@ -37,7 +37,6 @@ sensor.skip_frames(time=500)
 def sub_cb(topic, msg, retained):
     global text
     global old_text
-    print(f'Topic: "{topic.decode()}" Message: "{msg.decode()}" Retained: {retained}')
     text = msg.decode("utf-8")
     if text:
         write_text_center(text)
@@ -58,7 +57,6 @@ async def heartbeat():
 
 async def wifi_han(state):
     wifi_led(not state)
-    print("Wifi is ", "up" if state else "down")
     await asyncio.sleep(1)
 
 
@@ -77,14 +75,8 @@ def decide_mode():
     global mode_message
     if parallel_click:
         mode_message = 3
-    elif not parallel_click and not pinvalue(tcp_pin):
-        if pinvalue(free_pin):
-            if long_click_tcp:
-                mode_message = 1
-            else:
-                mode_message = 0
-        else:
-            mode_message = 2
+    else:
+        mode_message = 2
     return mode_message
 
 
@@ -93,7 +85,7 @@ async def take_a_pic():
     greenLED.on
     blueLED.on
     img = sensor.snapshot()
-    img = img.compress(quality=50)
+    img = img.compress(quality=35)
     await client.publish(IMAGE_TOPIC, bytearray(img.to_jpeg()))
     del img
     gc.collect()
@@ -122,26 +114,24 @@ async def main(client):
                             long_click_tcp = 0
                             write_text_center("designit!")
                             await asyncio.sleep_ms(2000)
-                            if old_text != None:
-                                old_text = None
-                                gc.collect()
                         else:
                             long_click_tcp = 1
                             await client.publish(
-                                MODE_TOPIC, json.dumps("RESET_ALIGNMENT"), qos=0
+                                TCP_TOPIC, json.dumps("RESET_ALIGNMENT"), qos=0
                             )
                             write_text_center("alignit!")
                             await asyncio.sleep_ms(2000)
                             align_number = 0
-                            
+
             if long_click_tcp == 0:
                 # Design mode
-                id = mode_message + "," +  {old_text}
                 if old_text != None:
+                    id = "3" + "," + old_text
                     await client.publish(TCP_TOPIC, json.dumps(id), qos=0)
                     write_text_center("ID sent !")
                     await asyncio.sleep_ms(2000)
                     old_text = None
+                    del id
                     gc.collect()
                 else:
                     write_text_center("no marker")
@@ -149,7 +139,7 @@ async def main(client):
             else:
                 if old_text != None:
                     # Align mode
-                    id = mode_message + "," + old_text
+                    id = "2" + "," + old_text
                     await client.publish(TCP_TOPIC, json.dumps(id), qos=0)
                     write_text_center("ID sent !")
                     await asyncio.sleep_ms(2000)
@@ -160,6 +150,7 @@ async def main(client):
                         long_click_tcp = 0
                         align_number = 0
                     old_text = None
+                    del id
                     gc.collect()
                 else:
                     write_text_center("no marker")
@@ -175,7 +166,6 @@ async def main(client):
             await asyncio.sleep_ms(100)
 
 
-print("intro")
 write_text("")
 intro("***GKR***")
 time.sleep(0.5)

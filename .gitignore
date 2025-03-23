@@ -1,3 +1,5 @@
 /synthetic_dataset
 *.h5
 *.hdf5
+*.pyc
+*.py.autosave

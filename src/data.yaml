@@ -1,0 +1,6 @@
+train: C:/Users/akango/Documents/github/sumitsuke/dataset/images/train
+val: C:/Users/akango/Documents/github/sumitsuke/dataset/images/val
+
+nc: 2  # Number of classes
+names: ["x", "o"]  # Replace with actual class names
+

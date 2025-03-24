@@ -5,6 +5,8 @@ import cv2 as cv
 import os, sys
 import threading
 
+from compas.geometry import angle_vectors_signed, Frame
+
 # Import the CCTDecodeRelease module
 module_path = os.path.abspath(os.path.join(os.path.abspath(__file__), "..","../../crafts_extended"))
 module_path = os.path.join(module_path, 'CCTDecode', 'CCTDecode')
@@ -128,6 +130,17 @@ def on_image_message(client, userdata, msg):
         # Add alternative image processing logic here
         boxes, classes = infer_yolo(img_np)
 
+        with tf_lock:
+            current_tf = tf_data
+        
+        if current_tf:
+            point = current_tf["point"]
+            xaxis = current_tf["xaxis"]
+            yaxis = current_tf["yaxis"]
+        
+        frame = Frame(point, xaxis, yaxis)
+            
+
         # Draw boxes on the image
         for box, clas in zip(boxes, classes):
             # Box is a tensor of [x, y, w, h]
@@ -145,6 +158,14 @@ def on_image_message(client, userdata, msg):
                     cv.rectangle(img_np, (x1, y1), (x2, y2), (0, 0, 255), 2)
                 else:
                     cv.rectangle(img_np, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            # Calculate the tilt and rotation angles
+            tilt = 0.0
+
+        placeholder_axis = [1,0,0]
+        rotation = angle_vectors_signed(placeholder_axis, xaxis, frame.zaxis, deg=True)
+
+        img_id = "t{},r{}".format(tilt, rotation)
                 
     cv.imshow("Nicla Vision", img_np)
     cv.waitKey(1)

@@ -26,6 +26,7 @@ tcp_pin = ADC("PF3")
 redLED = LED(1)
 greenLED = LED(2)
 blueLED = LED(3)
+
 sensor.reset()
 sensor.set_pixformat(sensor.GRAYSCALE)
 sensor.set_framesize(sensor.HVGA)
@@ -42,6 +43,8 @@ def sub_cb(topic, msg, retained):
         write_text_center(text)
         old_text = text
         text = None
+    else:
+        old_text = None
 
 
 async def heartbeat():
@@ -85,11 +88,11 @@ async def take_a_pic():
     greenLED.on
     blueLED.on
     img = sensor.snapshot()
-    img = img.compress(quality=35)
+    img = img.compress(quality=30)
     await client.publish(IMAGE_TOPIC, bytearray(img.to_jpeg()))
     del img
     gc.collect()
-    await asyncio.sleep_ms(500)
+    await asyncio.sleep_ms(1000)
 
 
 async def main(client):
@@ -113,14 +116,15 @@ async def main(client):
                         if parallel_click:
                             long_click_tcp = 0
                             write_text_center("designit!")
-                            await asyncio.sleep_ms(2000)
+                            old_text = None
+                            await asyncio.sleep_ms(1500)
                         else:
                             long_click_tcp = 1
                             await client.publish(
                                 TCP_TOPIC, json.dumps("RESET_ALIGNMENT"), qos=0
                             )
                             write_text_center("alignit!")
-                            await asyncio.sleep_ms(2000)
+                            await asyncio.sleep_ms(1500)
                             align_number = 0
 
             if long_click_tcp == 0:
@@ -128,20 +132,20 @@ async def main(client):
                 if old_text != None:
                     id = "3" + "," + old_text
                     await client.publish(TCP_TOPIC, json.dumps(id), qos=0)
-                    write_text_center("ID sent !")
+                    write_text_center("ID sent")
                     await asyncio.sleep_ms(2000)
                     old_text = None
                     del id
                     gc.collect()
                 else:
-                    write_text_center("no marker")
+                    write_text_center("nope")
                     await asyncio.sleep_ms(1000)
             else:
                 if old_text != None:
                     # Align mode
                     id = "2" + "," + old_text
                     await client.publish(TCP_TOPIC, json.dumps(id), qos=0)
-                    write_text_center("ID sent !")
+                    write_text_center("ID sent")
                     await asyncio.sleep_ms(2000)
                     align_number += 1
                     if align_number == 3:
@@ -153,13 +157,12 @@ async def main(client):
                     del id
                     gc.collect()
                 else:
-                    write_text_center("no marker")
+                    write_text_center("no markr")
                     await asyncio.sleep_ms(1000)
-        asyncio.create_task(take_a_pic())
-        gc.collect()
         await asyncio.sleep_ms(100)
+        asyncio.create_task(take_a_pic())
         if old_text == None:
-            write_text_center("marker?")
+            write_text_center("markr?")
             await asyncio.sleep_ms(100)
         elif pinvalue(free_pin):
             write_text_center("lock " f"{old_text}")
